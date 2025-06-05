@@ -22,51 +22,73 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # ------------------ CONNECT TO MONGODB ------------------
 
-try:
-    # Connection string with SSL options to handle TLS issues
-    connection_string = "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/?retryWrites=true&w=majority&ssl=true&tlsAllowInvalidCertificates=true"
+def connect_to_mongodb():
+    """Try multiple connection methods for MongoDB Atlas"""
     
-    client = MongoClient(
-        connection_string,
-        serverSelectionTimeoutMS=10000,  # 10 second timeout
-        connectTimeoutMS=10000,
-        socketTimeoutMS=10000,
-        retryWrites=True
-    )
+    # Method 1: Simple SRV connection
+    try:
+        print("Attempting Method 1: Simple SRV connection...")
+        client = MongoClient("mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/summer")
+        client.admin.command('ping')
+        return client, client["summer"]
+    except Exception as e:
+        print(f"Method 1 failed: {e}")
     
-    # Test the connection
-    client.admin.command('ping')
+    # Method 2: SRV with SSL disabled
+    try:
+        print("Attempting Method 2: SRV with SSL options...")
+        client = MongoClient(
+            "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/summer",
+            tls=True,
+            tlsInsecure=True,
+            serverSelectionTimeoutMS=30000
+        )
+        client.admin.command('ping')
+        return client, client["summer"]
+    except Exception as e:
+        print(f"Method 2 failed: {e}")
     
-    db = client["summer"]
+    # Method 3: Direct connection without SSL
+    try:
+        print("Attempting Method 3: Direct connection without SSL...")
+        client = MongoClient(
+            "mongodb://khebbabmohamed5:chanpanzi@ac-yvhn1vb-shard-00-00.wkal298.mongodb.net:27017,ac-yvhn1vb-shard-00-01.wkal298.mongodb.net:27017,ac-yvhn1vb-shard-00-02.wkal298.mongodb.net:27017/summer",
+            replicaSet="atlas-14ktvy-shard-0",
+            authSource="admin",
+            serverSelectionTimeoutMS=30000
+        )
+        client.admin.command('ping')
+        return client, client["summer"]
+    except Exception as e:
+        print(f"Method 3 failed: {e}")
+    
+    # Method 4: URL-encoded password (in case special characters are causing issues)
+    try:
+        print("Attempting Method 4: URL-encoded password...")
+        import urllib.parse
+        encoded_password = urllib.parse.quote_plus("chanpanzi")
+        client = MongoClient(f"mongodb+srv://khebbabmohamed5:{encoded_password}@summer.wkal298.mongodb.net/summer")
+        client.admin.command('ping')
+        return client, client["summer"]
+    except Exception as e:
+        print(f"Method 4 failed: {e}")
+    
+    print("All connection methods failed!")
+    return None, None
+
+# Try to connect
+client, db = connect_to_mongodb()
+
+if client and db:
     users_collection = db["User"]
     posts_collection = db["Post"]
-    print("Connected to MongoDB Atlas successfully")
-except Exception as e:
-    print(f"Error connecting to MongoDB: {e}")
-    # Try alternative connection method
-    try:
-        print("Trying alternative connection method...")
-        # Alternative connection string without SRV
-        alt_connection_string = "mongodb://khebbabmohamed5:chanpanzi@ac-yvhn1vb-shard-00-00.wkal298.mongodb.net:27017,ac-yvhn1vb-shard-00-01.wkal298.mongodb.net:27017,ac-yvhn1vb-shard-00-02.wkal298.mongodb.net:27017/summer?ssl=true&replicaSet=atlas-14ktvy-shard-0&authSource=admin&retryWrites=true&w=majority&tlsAllowInvalidCertificates=true"
-        
-        client = MongoClient(
-            alt_connection_string,
-            serverSelectionTimeoutMS=10000,
-            connectTimeoutMS=10000,
-            socketTimeoutMS=10000
-        )
-        
-        client.admin.command('ping')
-        db = client["summer"]
-        users_collection = db["User"]
-        posts_collection = db["Post"]
-        print("Connected to MongoDB Atlas successfully with alternative method")
-    except Exception as e2:
-        print(f"Alternative connection also failed: {e2}")
-        client = None
-        db = None
-        users_collection = None
-        posts_collection = None
+    print("✅ Successfully connected to MongoDB Atlas!")
+else:
+    print("❌ Failed to connect to MongoDB Atlas")
+    client = None
+    db = None
+    users_collection = None
+    posts_collection = None
 
 # ------------------ HELPER FUNCTIONS ------------------
 
