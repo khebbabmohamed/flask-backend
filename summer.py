@@ -23,13 +23,27 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # ------------------ CONNECT TO MONGODB ------------------
 
 try:
-    client = MongoClient("mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/")
+    # Add connection options for better reliability
+    client = MongoClient(
+        "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/",
+        serverSelectionTimeoutMS=5000,  # 5 second timeout
+        retryWrites=True
+    )
+    
+    # Test the connection
+    client.admin.command('ping')
+    
     db = client["summer"]
     users_collection = db["User"]
     posts_collection = db["Post"]
-    print("Connected to MongoDB")
+    print("Connected to MongoDB Atlas successfully")
 except Exception as e:
     print(f"Error connecting to MongoDB: {e}")
+    # Don't exit, but make sure the error is visible
+    client = None
+    db = None
+    users_collection = None
+    posts_collection = None
 
 # ------------------ HELPER FUNCTIONS ------------------
 
@@ -50,7 +64,14 @@ def index():
 @app.route("/auth/signup", methods=["POST"])
 def signup():
     try:
+        # Check if database connection exists
+        if users_collection is None:
+            print("Database connection not available")
+            return jsonify({"error": "Database connection error"}), 500
+            
         data = request.get_json()
+        print(f"Received signup data: {data}")  # Debug log
+        
         required_fields = ['first_name', 'last_name', 'email', 'password']
         for field in required_fields:
             if not data.get(field):
@@ -62,6 +83,7 @@ def signup():
         if len(data['password']) < 6:
             return jsonify({"error": "Password must be at least 6 characters long"}), 400
 
+        print(f"Checking for existing user with email: {data['email']}")  # Debug log
         existing_user = users_collection.find_one({"email": data['email'].lower().strip()})
         if existing_user:
             return jsonify({"error": "User with this email already exists"}), 409
@@ -77,7 +99,9 @@ def signup():
             "is_active": True
         }
 
+        print("Inserting new user...")  # Debug log
         result = users_collection.insert_one(user_data)
+        print(f"User created with ID: {result.inserted_id}")  # Debug log
 
         return jsonify({
             "message": "User created successfully",
@@ -92,6 +116,8 @@ def signup():
 
     except Exception as e:
         print(f"Signup error: {e}")
+        import traceback
+        traceback.print_exc()  # Print full error traceback
         return jsonify({"error": "Internal server error"}), 500
 
 # ------ LOGIN ------
