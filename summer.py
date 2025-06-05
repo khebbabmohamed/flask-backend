@@ -131,7 +131,7 @@ def login():
             return jsonify({"error": "Email and password are required"}), 400
 
         email_normalized = data['email'].lower().strip()
-        user = users_population = users_collection.find_one({"email": email_normalized})
+        user = users_collection.find_one({"email": email_normalized})
 
         if not user or not check_password_hash(user['password'], data['password']):
             return jsonify({"error": "Invalid email or password"}), 401
