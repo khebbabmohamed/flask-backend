@@ -23,14 +23,17 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # ------------------ CONNECT TO MONGODB ------------------
 
 try:
-    uri = (
-        "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/"
-        "summer?retryWrites=true&w=majority"
-    )
-    client = MongoClient(uri, serverSelectionTimeoutMS=10000)
-    db = client["summer"]
-    users_collection = db["User"]
-    posts_collection = db["Post"]
+    mongo_uri = os.environ.get(
+    "MONGODB_URI",
+    "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/"
+    "summer?retryWrites=true&w=majority"
+)
+client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
+db = client["summer"]
+
+# Now point your collections at the “summer” database
+users_collection = db["User"]
+posts_collection = db["Post"]
     print("Connected to MongoDB")
 except Exception as e:
     print(f"Error connecting to MongoDB: {e}")
