@@ -27,7 +27,7 @@ try:
         "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/"
         "summer?retryWrites=true&w=majority"
     )
-    client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+    client = MongoClient(uri, serverSelectionTimeoutMS=10000)
     db = client["summer"]
     users_collection = db["User"]
     posts_collection = db["Post"]
