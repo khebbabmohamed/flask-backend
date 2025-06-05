@@ -23,10 +23,14 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # ------------------ CONNECT TO MONGODB ------------------
 
 try:
-    # Add connection options for better reliability
+    # Connection string with SSL options to handle TLS issues
+    connection_string = "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/?retryWrites=true&w=majority&ssl=true&tlsAllowInvalidCertificates=true"
+    
     client = MongoClient(
-        "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/",
-        serverSelectionTimeoutMS=5000,  # 5 second timeout
+        connection_string,
+        serverSelectionTimeoutMS=10000,  # 10 second timeout
+        connectTimeoutMS=10000,
+        socketTimeoutMS=10000,
         retryWrites=True
     )
     
@@ -39,11 +43,30 @@ try:
     print("Connected to MongoDB Atlas successfully")
 except Exception as e:
     print(f"Error connecting to MongoDB: {e}")
-    # Don't exit, but make sure the error is visible
-    client = None
-    db = None
-    users_collection = None
-    posts_collection = None
+    # Try alternative connection method
+    try:
+        print("Trying alternative connection method...")
+        # Alternative connection string without SRV
+        alt_connection_string = "mongodb://khebbabmohamed5:chanpanzi@ac-yvhn1vb-shard-00-00.wkal298.mongodb.net:27017,ac-yvhn1vb-shard-00-01.wkal298.mongodb.net:27017,ac-yvhn1vb-shard-00-02.wkal298.mongodb.net:27017/summer?ssl=true&replicaSet=atlas-14ktvy-shard-0&authSource=admin&retryWrites=true&w=majority&tlsAllowInvalidCertificates=true"
+        
+        client = MongoClient(
+            alt_connection_string,
+            serverSelectionTimeoutMS=10000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=10000
+        )
+        
+        client.admin.command('ping')
+        db = client["summer"]
+        users_collection = db["User"]
+        posts_collection = db["Post"]
+        print("Connected to MongoDB Atlas successfully with alternative method")
+    except Exception as e2:
+        print(f"Alternative connection also failed: {e2}")
+        client = None
+        db = None
+        users_collection = None
+        posts_collection = None
 
 # ------------------ HELPER FUNCTIONS ------------------
 
