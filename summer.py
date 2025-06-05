@@ -23,7 +23,10 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # ------------------ CONNECT TO MONGODB ------------------
 
 try:
-     uri = "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/summer?retryWrites=true&w=majority"
+    uri = (
+        "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/"
+        "summer?retryWrites=true&w=majority"
+    )
     client = MongoClient(uri, serverSelectionTimeoutMS=5000)
     db = client["summer"]
     users_collection = db["User"]
@@ -31,6 +34,10 @@ try:
     print("Connected to MongoDB")
 except Exception as e:
     print(f"Error connecting to MongoDB: {e}")
+    # It can be helpful to set these to None if the connection fails,
+    # so that route handlers can check and give a 500 if users_collection is None.
+    users_collection = None
+    posts_collection = None
 
 # ------------------ HELPER FUNCTIONS ------------------
 
@@ -51,19 +58,29 @@ def index():
 @app.route("/auth/signup", methods=["POST"])
 def signup():
     try:
+        if users_collection is None:
+            return jsonify({"error": "Database connection not available"}), 500
+
         data = request.get_json()
+        if data is None:
+            return jsonify({"error": "Request body must be valid JSON"}), 400
+
         required_fields = ['first_name', 'last_name', 'email', 'password']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({"error": f"{field} is required"}), 400
 
+        # Validate email syntax
         if not validate_email(data['email']):
             return jsonify({"error": "Invalid email format"}), 400
 
+        # Check password length
         if len(data['password']) < 6:
             return jsonify({"error": "Password must be at least 6 characters long"}), 400
 
-        existing_user = users_collection.find_one({"email": data['email'].lower().strip()})
+        # Check if user already exists
+        email_normalized = data['email'].lower().strip()
+        existing_user = users_collection.find_one({"email": email_normalized})
         if existing_user:
             return jsonify({"error": "User with this email already exists"}), 409
 
@@ -71,7 +88,7 @@ def signup():
         user_data = {
             "first_name": data['first_name'].strip(),
             "last_name": data['last_name'].strip(),
-            "email": data['email'].lower().strip(),
+            "email": email_normalized,
             "password": hashed_pw,
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc),
@@ -79,12 +96,13 @@ def signup():
         }
 
         result = users_collection.insert_one(user_data)
+        new_id = str(result.inserted_id)
 
         return jsonify({
             "message": "User created successfully",
-            "user_id": str(result.inserted_id),
+            "user_id": new_id,
             "user": {
-                "id": str(result.inserted_id),
+                "id": new_id,
                 "first_name": user_data['first_name'],
                 "last_name": user_data['last_name'],
                 "email": user_data['email']
@@ -99,11 +117,19 @@ def signup():
 @app.route("/auth/login", methods=["POST"])
 def login():
     try:
+        if users_collection is None:
+            return jsonify({"error": "Database connection not available"}), 500
+
         data = request.get_json()
+        if data is None:
+            return jsonify({"error": "Request body must be valid JSON"}), 400
+
         if not data.get('email') or not data.get('password'):
             return jsonify({"error": "Email and password are required"}), 400
 
-        user = users_collection.find_one({"email": data['email'].lower().strip()})
+        email_normalized = data['email'].lower().strip()
+        user = users_population = users_collection.find_one({"email": email_normalized})
+
         if not user or not check_password_hash(user['password'], data['password']):
             return jsonify({"error": "Invalid email or password"}), 401
 
@@ -142,6 +168,9 @@ def logout():
 @app.route("/auth/user/<user_id>", methods=["GET"])
 def get_user(user_id):
     try:
+        if users_collection is None:
+            return jsonify({"error": "Database connection not available"}), 500
+
         user_obj = users_collection.find_one({"_id": ObjectId(user_id)})
         if not user_obj:
             return jsonify({"error": "User not found"}), 404
@@ -156,6 +185,7 @@ def get_user(user_id):
             "updated_at": user_obj.get("updated_at").isoformat() if user_obj.get("updated_at") else None,
         }
         return jsonify({"user": user_data}), 200
+
     except Exception as e:
         print(f"Get user error: {e}")
         return jsonify({"error": "Internal server error"}), 500
@@ -164,8 +194,11 @@ def get_user(user_id):
 @app.route("/auth/user/<user_id>", methods=["PUT"])
 def update_user(user_id):
     try:
+        if users_collection is None:
+            return jsonify({"error": "Database connection not available"}), 500
+
         data = request.get_json()
-        if not data:
+        if data is None:
             return jsonify({"error": "No data provided"}), 400
 
         update_fields = {}
@@ -214,6 +247,7 @@ def update_user(user_id):
             return jsonify({"error": "User not found"}), 404
 
         return jsonify({"success": True}), 200
+
     except Exception as e:
         print(f"Update user error: {e}")
         return jsonify({"error": "Internal server error"}), 500
@@ -222,6 +256,9 @@ def update_user(user_id):
 @app.route("/auth/user/<user_id>/photo", methods=["POST"])
 def upload_photo(user_id):
     try:
+        if users_collection is None:
+            return jsonify({"error": "Database connection not available"}), 500
+
         user_obj = users_collection.find_one({"_id": ObjectId(user_id)})
         if not user_obj:
             return jsonify({"error": "User not found"}), 404
@@ -262,7 +299,13 @@ def serve_uploaded_file(filename):
 @app.route("/posts", methods=["POST"])
 def create_post():
     try:
+        if users_collection is None:
+            return jsonify({"error": "Database connection not available"}), 500
+
         data = request.get_json()
+        if data is None:
+            return jsonify({"error": "Request body must be valid JSON"}), 400
+
         if not data.get('user_id'):
             return jsonify({"error": "User ID is required"}), 400
         if not data.get('content'):
@@ -282,12 +325,13 @@ def create_post():
         }
 
         result = posts_collection.insert_one(post_data)
+        new_post_id = str(result.inserted_id)
 
         return jsonify({
             "message": "Post created successfully",
-            "post_id": str(result.inserted_id),
+            "post_id": new_post_id,
             "post": {
-                "id": str(result.inserted_id),
+                "id": new_post_id,
                 "content": post_data['content'],
                 "likes": post_data['likes'],
                 "created_at": post_data['created_at'].isoformat(),
@@ -306,6 +350,9 @@ def create_post():
 @app.route("/posts", methods=["GET"])
 def get_posts():
     try:
+        if posts_collection is None:
+            return jsonify({"error": "Database connection not available"}), 500
+
         sort_by = request.args.get('sort', 'new')
         if sort_by == 'old':
             sort_criteria = [("created_at", 1)]
@@ -367,7 +414,13 @@ def get_posts():
 @app.route("/posts/<post_id>/like", methods=["POST"])
 def toggle_like(post_id):
     try:
+        if posts_collection is None:
+            return jsonify({"error": "Database connection not available"}), 500
+
         data = request.get_json()
+        if data is None:
+            return jsonify({"error": "Request body must be valid JSON"}), 400
+
         if not data.get('user_id'):
             return jsonify({"error": "User ID is required"}), 400
 
