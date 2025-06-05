@@ -23,7 +23,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # ------------------ CONNECT TO MONGODB ------------------
 
 try:
-    client = MongoClient("mongodb://localhost:27017/")
+    client = MongoClient("mongodb+srv://khebbabmohamed5:<db_password>@summer.wkal298.mongodb.net/")
     db = client["summer"]
     users_collection = db["User"]
     posts_collection = db["Post"]
