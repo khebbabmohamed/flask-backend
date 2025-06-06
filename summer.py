@@ -5,6 +5,8 @@ from bson import ObjectId
 from datetime import datetime, timezone
 import os
 import re
+import ssl
+import certifi
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -23,57 +25,119 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # ------------------ CONNECT TO MONGODB ------------------
 
 def connect_to_mongodb():
-    """Try multiple connection methods for MongoDB Atlas"""
+    """Try multiple connection methods for MongoDB Atlas with SSL fixes"""
     
-    # Method 1: Simple SRV connection
+    # Method 1: Using certifi for SSL certificates
     try:
-        print("Attempting Method 1: Simple SRV connection...")
-        client = MongoClient("mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/summer")
+        print("Attempting Method 1: Using certifi SSL certificates...")
+        client = MongoClient(
+            "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/summer",
+            tlsCAFile=certifi.where(),
+            serverSelectionTimeoutMS=30000,
+            connectTimeoutMS=30000,
+            socketTimeoutMS=30000
+        )
         client.admin.command('ping')
+        print("✅ Method 1 successful!")
         return client, client["summer"]
     except Exception as e:
         print(f"Method 1 failed: {e}")
     
-    # Method 2: SRV with SSL disabled
+    # Method 2: Disable SSL certificate verification (less secure but might work)
     try:
-        print("Attempting Method 2: SRV with SSL options...")
+        print("Attempting Method 2: SSL with insecure mode...")
         client = MongoClient(
             "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/summer",
             tls=True,
             tlsInsecure=True,
-            serverSelectionTimeoutMS=30000
+            tlsAllowInvalidCertificates=True,
+            tlsAllowInvalidHostnames=True,
+            serverSelectionTimeoutMS=30000,
+            connectTimeoutMS=30000,
+            socketTimeoutMS=30000
         )
         client.admin.command('ping')
+        print("✅ Method 2 successful!")
         return client, client["summer"]
     except Exception as e:
         print(f"Method 2 failed: {e}")
     
-    # Method 3: Direct connection without SSL
+    # Method 3: Force TLS version
     try:
-        print("Attempting Method 3: Direct connection without SSL...")
+        print("Attempting Method 3: Forcing TLS 1.2...")
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        
         client = MongoClient(
-            "mongodb://khebbabmohamed5:chanpanzi@ac-yvhn1vb-shard-00-00.wkal298.mongodb.net:27017,ac-yvhn1vb-shard-00-01.wkal298.mongodb.net:27017,ac-yvhn1vb-shard-00-02.wkal298.mongodb.net:27017/summer",
-            replicaSet="atlas-14ktvy-shard-0",
-            authSource="admin",
-            serverSelectionTimeoutMS=30000
+            "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/summer",
+            ssl=True,
+            ssl_context=ssl_context,
+            serverSelectionTimeoutMS=30000,
+            connectTimeoutMS=30000,
+            socketTimeoutMS=30000
         )
         client.admin.command('ping')
+        print("✅ Method 3 successful!")
         return client, client["summer"]
     except Exception as e:
         print(f"Method 3 failed: {e}")
     
-    # Method 4: URL-encoded password (in case special characters are causing issues)
+    # Method 4: Alternative connection string format
     try:
-        print("Attempting Method 4: URL-encoded password...")
-        import urllib.parse
-        encoded_password = urllib.parse.quote_plus("chanpanzi")
-        client = MongoClient(f"mongodb+srv://khebbabmohamed5:{encoded_password}@summer.wkal298.mongodb.net/summer")
+        print("Attempting Method 4: Alternative connection string...")
+        client = MongoClient(
+            "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/summer?retryWrites=true&w=majority&ssl=true&ssl_cert_reqs=CERT_NONE",
+            serverSelectionTimeoutMS=30000,
+            connectTimeoutMS=30000,
+            socketTimeoutMS=30000
+        )
         client.admin.command('ping')
+        print("✅ Method 4 successful!")
         return client, client["summer"]
     except Exception as e:
         print(f"Method 4 failed: {e}")
     
-    print("All connection methods failed!")
+    # Method 5: Direct connection with updated SSL settings
+    try:
+        print("Attempting Method 5: Direct connection with SSL...")
+        client = MongoClient(
+            "mongodb://khebbabmohamed5:chanpanzi@ac-yvhn1vb-shard-00-00.wkal298.mongodb.net:27017,ac-yvhn1vb-shard-00-01.wkal298.mongodb.net:27017,ac-yvhn1vb-shard-00-02.wkal298.mongodb.net:27017/summer",
+            replicaSet="atlas-14ktvy-shard-0",
+            authSource="admin",
+            ssl=True,
+            tlsInsecure=True,
+            serverSelectionTimeoutMS=30000,
+            connectTimeoutMS=30000,
+            socketTimeoutMS=30000
+        )
+        client.admin.command('ping')
+        print("✅ Method 5 successful!")
+        return client, client["summer"]
+    except Exception as e:
+        print(f"Method 5 failed: {e}")
+    
+    # Method 6: Environment variable approach (if you set MONGODB_URI)
+    try:
+        print("Attempting Method 6: Environment variable...")
+        mongodb_uri = os.getenv('MONGODB_URI')
+        if mongodb_uri:
+            client = MongoClient(
+                mongodb_uri,
+                tlsCAFile=certifi.where(),
+                serverSelectionTimeoutMS=30000,
+                connectTimeoutMS=30000,
+                socketTimeoutMS=30000
+            )
+            client.admin.command('ping')
+            print("✅ Method 6 successful!")
+            return client, client["summer"]
+        else:
+            print("No MONGODB_URI environment variable found")
+    except Exception as e:
+        print(f"Method 6 failed: {e}")
+    
+    print("❌ All connection methods failed!")
     return None, None
 
 # Try to connect
