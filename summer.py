@@ -27,8 +27,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 def connect_to_mongodb():
     """Try multiple connection methods for MongoDB Atlas with SSL fixes"""
     
-    # Corrected connection string with password
-    base_connection_string = "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/?retryWrites=true&w=majority&appName=summer"
+    # Connection string without database name for initial connection
+    base_connection_string = "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/"
     
     # Method 1: Using certifi for SSL certificates (recommended)
     try:
@@ -103,13 +103,12 @@ def connect_to_mongodb():
     except Exception as e:
         print(f"Method 4 failed: {e}")
     
-    # Method 5: Environment variable approach
+    # Method 5: Connection string with parameters
     try:
-        print("Attempting Method 5: Environment variable...")
-        mongodb_uri = os.getenv('MONGODB_URI', base_connection_string)
+        print("Attempting Method 5: Connection string with parameters...")
+        connection_string = f"{base_connection_string}?retryWrites=true&w=majority&ssl=true"
         client = MongoClient(
-            mongodb_uri,
-            tlsCAFile=certifi.where(),
+            connection_string,
             serverSelectionTimeoutMS=30000,
             connectTimeoutMS=30000,
             socketTimeoutMS=30000
@@ -120,9 +119,26 @@ def connect_to_mongodb():
     except Exception as e:
         print(f"Method 5 failed: {e}")
     
-    # Method 6: Direct hosts connection (fallback)
+    # Method 6: Environment variable approach
     try:
-        print("Attempting Method 6: Direct hosts connection...")
+        print("Attempting Method 6: Environment variable...")
+        mongodb_uri = os.getenv('MONGODB_URI', base_connection_string)
+        client = MongoClient(
+            mongodb_uri,
+            tlsCAFile=certifi.where(),
+            serverSelectionTimeoutMS=30000,
+            connectTimeoutMS=30000,
+            socketTimeoutMS=30000
+        )
+        client.admin.command('ping')
+        print("✅ Method 6 successful!")
+        return client, client["summer"]
+    except Exception as e:
+        print(f"Method 6 failed: {e}")
+    
+    # Method 7: Direct hosts connection (fallback)
+    try:
+        print("Attempting Method 7: Direct hosts connection...")
         client = MongoClient(
             "mongodb://khebbabmohamed5:chanpanzi@ac-yvhn1vb-shard-00-00.wkal298.mongodb.net:27017,ac-yvhn1vb-shard-00-01.wkal298.mongodb.net:27017,ac-yvhn1vb-shard-00-02.wkal298.mongodb.net:27017/summer",
             replicaSet="atlas-14ktvy-shard-0",
@@ -134,10 +150,10 @@ def connect_to_mongodb():
             socketTimeoutMS=30000
         )
         client.admin.command('ping')
-        print("✅ Method 6 successful!")
+        print("✅ Method 7 successful!")
         return client, client["summer"]
     except Exception as e:
-        print(f"Method 6 failed: {e}")
+        print(f"Method 7 failed: {e}")
     
     print("❌ All connection methods failed!")
     print("Please check:")
