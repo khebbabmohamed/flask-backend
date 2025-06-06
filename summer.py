@@ -5,8 +5,7 @@ from bson import ObjectId
 from datetime import datetime, timezone
 import os
 import re
-import ssl
-import certifi
+
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -43,10 +42,10 @@ def connect_to_mongodb():
 # Try to connect
 client, db = connect_to_mongodb()
 
-if client and db:
+if client is not None and db is not None:
     users_collection = db["User"]
     posts_collection = db["Post"]
-    print("✅ Successfully connected to MongoDB Atlas!")
+    print("✅ Database collections initialized!")
 else:
     print("❌ Failed to connect to MongoDB Atlas")
     client = None
