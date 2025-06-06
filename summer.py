@@ -28,7 +28,7 @@ def connect_to_mongodb():
     """Try multiple connection methods for MongoDB Atlas with SSL fixes"""
     
     # Connection string without database name for initial connection
-    base_connection_string = "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/"
+    base_connection_string = "mongodb+srv://khebbabmohamed5:chanpanzi@summer.wkal298.mongodb.net/?retryWrites=true&w=majority&appName=summer"
     
     # Method 1: Using certifi for SSL certificates (recommended)
     try:
