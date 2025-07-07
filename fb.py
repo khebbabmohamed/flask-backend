@@ -1,3 +1,4 @@
+import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
@@ -43,4 +44,5 @@ def login():
         return jsonify({"success": False, "message": f"Database error: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=8080)
+    port = int(os.environ.get("PORT", 8080))  # Use the provided PORT environment variable
+    app.run(debug=False, host="0.0.0.0", port=port)  # Run the app on the dynamic port
