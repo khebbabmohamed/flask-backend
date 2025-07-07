@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
 from datetime import datetime, timezone
@@ -15,11 +15,6 @@ def connect_to_mongodb():
 
 db = connect_to_mongodb()
 users_collection = db["User"]
-
-# Serve the login page
-@app.route("/", methods=["GET"])
-def serve_login_page():
-    return render_template("index.html")
 
 # Handle form submission (POST)
 @app.route("/login", methods=["POST"])
@@ -48,4 +43,4 @@ def login():
         return jsonify({"success": False, "message": f"Database error: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0", port=8080)
